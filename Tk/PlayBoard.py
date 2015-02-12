@@ -1,6 +1,7 @@
 __author__ = 'Rudolf Hart'
 
 import Tk.Board
+import tkMessageBox
 
 
 class PlayBoard(Tk.Board):
@@ -9,125 +10,86 @@ class PlayBoard(Tk.Board):
     OFFSET = 0.1
     REPLAY_TIME_STEP = 1000
 
-sub scale_board {
-    my ($self) = @_;
-    my $zoom = $SIZE_FACTOR * $self->cget('-zoom');
-    $self->scale( 'board', 0, 0, $zoom, $zoom );
-    return;
-}
+    def scale_board(self):
+        zoom = PlayBoard.SIZE_FACTOR * self.zoom
+        self.scale('board', 0, 0, zoom, zoom)
 
-sub scale_piece {
-    my ( $self, $piece ) = @_;
+    def scale_piece(self, piece):
+        zoom = self.zoom
+        self.scale(piece.name, 0, 0, zoom, zoom)
 
-    my $zoom = $self->cget('-zoom');
-    $self->scale( $piece->{name}, 0, 0, $zoom, $zoom );
-    return;
-}
+    def add_sensors(self, piece):
+        (sx, sy) = piece.get_size()
+        (xpos, ypos) = piece.get_position()
+        piececolor = '#cb8'
+        zoom = self.zoom
 
-sub add_sensors {
-    my ( $self, $piece ) = @_;
-    my ( $sx,   $sy )    = $piece->get_size();
-    my ( $xpos, $ypos )  = $piece->get_position();
-    my $piececolor = '#cb8';
-    my $zoom       = $self->cget('-zoom');
+        idn = self.create_rectangle(
+            xpos * PlayBoard.SIZE_FACTOR + 1,
+            ypos * PlayBoard.SIZE_FACTOR + PlayBoard.OFFSET,
+            (xpos + sx) * PlayBoard.SIZE_FACTOR - 1,
+            ypos * PlayBoard.SIZE_FACTOR + 1,
+            {"outline": piececolor, "fill": piececolor}
+        )
+        self.scale(idn, 0, 0, zoom, zoom)
+        idn.bind('<Button-1>', lambda pc=piece: self.move_piece(pc, 'n'))
+        piece.add_sensor(idn)
 
-    my $idn = $self->createRectangle(
-        $xpos * $SIZE_FACTOR + 1,
-        $ypos * $SIZE_FACTOR + $OFFSET,
-        ( $xpos + $sx ) * $SIZE_FACTOR - 1,
-        $ypos * $SIZE_FACTOR + 1,
-        -outline => $piececolor,
-        -fill    => $piececolor
-    );
+        ids = self.create_rectangle(
+            xpos * PlayBoard.SIZE_FACTOR + 1,
+            (ypos + sy) * PlayBoard.SIZE_FACTOR - 1,
+            (xpos + sx) * PlayBoard.SIZE_FACTOR - 1,
+            (ypos + sy) * PlayBoard.SIZE_FACTOR - PlayBoard.OFFSET,
+            {"outline": piececolor, "fill": piececolor}
+        )
+        self.scale(ids, 0, 0, zoom, zoom)
+        ids.bind('<Button-1>', lambda pc=piece: self.move_piece(pc, 's'))
+        piece.add_sensor(ids)
 
-    $self->scale( $idn, 0, 0, $zoom, $zoom );
-    $self->bind( $idn, '<Button-1>', [ \&move_piece, $piece, 'n' ] );
-    $piece->add_sensor($idn);
+        idw = self.createRectangle(
+            xpos * PlayBoard.SIZE_FACTOR + PlayBoard.OFFSET,
+            ypos * PlayBoard.SIZE_FACTOR + 1,
+            xpos * PlayBoard.SIZE_FACTOR + 1,
+            (ypos + sy) * PlayBoard.SIZE_FACTOR - 1,
+            {"outline": piececolor, "fill": piececolor}
+        )
+        self.scale(idw, 0, 0, zoom, zoom)
+        idw.bind('<Button-1>', lambda pc=piece: self.move_piece(pc, 'w'))
+        piece.add_sensor(idw)
 
-    my $ids = $self->createRectangle(
-        $xpos * $SIZE_FACTOR + 1,
-        ( $ypos + $sy ) * $SIZE_FACTOR - 1,
-        ( $xpos + $sx ) * $SIZE_FACTOR - 1,
-        ( $ypos + $sy ) * $SIZE_FACTOR - $OFFSET,
-        -outline => $piececolor,
-        -fill    => $piececolor
-    );
+        ide = self.createRectangle(
+            (xpos + sx) * PlayBoard.SIZE_FACTOR - 1,
+            ypos * PlayBoard.SIZE_FACTOR + 1,
+            (xpos + sx) * PlayBoard.SIZE_FACTOR - PlayBoard.OFFSET,
+            (ypos + sy) * PlayBoard.SIZE_FACTOR - 1,
+            {"outline": piececolor, "fill": piececolor}
+        )
+        self.scale(ide, 0, 0, zoom, zoom)
+        ide.bind('<Button-1>', lambda pc=piece: self.move_piece(pc, 'e'))
+        piece.add_sensor(ide)
 
-    $self->scale( $ids, 0, 0, $zoom, $zoom );
+    def move_piece(self, piece, direction, replay=None):
+        zoom = self.zoom
+        board = self.board
 
-    $self->bind( $ids, '<Button-1>', [ \&move_piece, $piece, 's' ] );
-    $piece->add_sensor($ids);
+        delta = board.move(piece, direction)
+        if not delta:
+            return
 
-    my $idw = $self->createRectangle(
-        $xpos * $SIZE_FACTOR + $OFFSET,
-        $ypos * $SIZE_FACTOR + 1,
-        $xpos * $SIZE_FACTOR + 1,
-        ( $ypos + $sy ) * $SIZE_FACTOR - 1,
-        -outline => $piececolor,
-        -fill    => $piececolor
-    );
+        if not replay:
+            self.game.add_move(piece.name, direction)
 
-    $self->scale( $idw, 0, 0, $zoom, $zoom );
+        dx = delta[0] * PlayBoard.SIZE_FACTOR * zoom
+        dy = delta[1] * PlayBoard.SIZE_FACTOR * zoom
+        self.move(piece.get_id(), dx, dy)
+        for sensor in piece.get_sensors():
+            self.move(sensor, dx, dy)
+        if board.check_solution(self.game.get_target()):
+            tkMessageBox.showinfo("Solved", " CONGRATULATIONS!!\n You found the solution.")
 
-    $self->bind( $idw, '<Button-1>', [ \&move_piece, $piece, 'w' ] );
-    $piece->add_sensor($idw);
-
-    my $ide = $self->createRectangle(
-        ( $xpos + $sx ) * $SIZE_FACTOR - 1,
-        $ypos * $SIZE_FACTOR + 1,
-        ( $xpos + $sx ) * $SIZE_FACTOR - $OFFSET,
-        ( $ypos + $sy ) * $SIZE_FACTOR - 1,
-        -outline => $piececolor,
-        -fill    => $piececolor
-    );
-
-    $self->scale( $ide, 0, 0, $zoom, $zoom );
-    $self->bind( $ide, '<Button-1>', [ \&move_piece, $piece, 'e' ] );
-    $piece->add_sensor($ide);
-    return;
-}
-
-sub move_piece {
-    my ( $self, $piece, $direction, $replay ) = @_;
-
-    my $zoom  = $self->cget('-zoom');
-    my $board = $self->cget('-board');
-
-    my $delta = $board->move( $piece, $direction );
-    if(not $delta) { return; }
-
-    if ( not defined $replay ) {
-        $self->cget('-game')->add_move( $piece->{name}, $direction );
-    }
-
-    my $dx = $delta->[0] * $SIZE_FACTOR * $zoom;
-    my $dy = $delta->[1] * $SIZE_FACTOR * $zoom;
-    $self->move( $piece->get_id(), $dx, $dy );
-    foreach my $sensor ( $piece->get_sensors() ) {
-        $self->move( $sensor, $dx, $dy );
-    }
-    if ( $board->check_solution( $self->cget('-game')->get_target() ) ) {
-        $self->messageBox(
-            -type    => 'OK',
-            -icon    => 'info',
-            -message => " CONGRATULATIONS!!\n You found the solution."
-        );
-    }
-    return;
-}
-
-sub replay_move {
-    my ( $self, $game ) = @_;
-
-    my $board = $self->cget('-board');
-    my $move  = $game->play_move();
-    if ($move) {
-        $self->move_piece( $board->{pieces}->{ $move->{name} },
-            $move->{direction}, 1 );
-
-        $self->after( $REPLAY_TIME_STEP, [ \&replay_move, $self, $game ] );
-    }
-    return;
-}
-
-1;
+    def replay_move(self, game):
+        board = self.board
+        move = game.play_move()
+        if move:
+            self.move_piece(board.pieces.move.name, move.direction, 1)
+            self.after(PlayBoard.REPLAY_TIME_STEP, lambda g=game: self.replay_move(g))

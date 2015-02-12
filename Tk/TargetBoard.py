@@ -4,38 +4,28 @@ import Tk.Board
 
 
 class TargetBoard(Tk.Board):
-    VERSION = '1.0.0';
+    VERSION = '1.0.0'
     SIZE_FACTOR = 5
     DIVISION_SIZE = 0.25
 
     def scale_board(self):
-        zoom   = $SIZE_FACTOR * $self->cget('-zoom');
-        board  = $self->cget('-board');
-        self->scale( 'board', 0, 0, $zoom / 2, $zoom / 2 );
-        self->move(
+        zoom = TargetBoard.SIZE_FACTOR * self.zoom
+        self.scale('board', 0, 0, zoom/2, zoom/2)
+        self.move(
             'all',
-            ( $board->{xmax} + 1 ) * $DIVISION_SIZE * $zoom,
-            ( $board->{ymax} + 1 ) * $DIVISION_SIZE * $zoom
+            (self.board.xmax + 1) * TargetBoard.DIVISION_SIZE * zoom,
+            (self.board.ymax + 1) * TargetBoard.DIVISION_SIZE * zoom
+        )
 
-sub scale_piece {
-    my ( $self, $piece ) = @_;
-    my $zoom  = $self->cget('-zoom');
-    my $board = $self->cget('-board');
+    def scale_piece(self, piece):
 
-    $self->scale( $piece->{name}, 0, 0, $zoom / 2, $zoom / 2 );
-    $self->move(
-        $piece->{name},
-        ( $board->{xmax} + 1 ) * $DIVISION_SIZE * $zoom * $SIZE_FACTOR,
-        ( $board->{ymax} + 1 ) * $DIVISION_SIZE * $zoom * $SIZE_FACTOR
-    );
-    return;
-}
+        self.scale(piece.name, 0, 0, self.zoom/2, self.zoom/2)
+        self.move(
+            piece.name,
+            (self.board.xmax + 1) * TargetBoard.DIVISION_SIZE * self.zoom * TargetBoard.SIZE_FACTOR,
+            (self.board.ymax + 1) * TargetBoard.DIVISION_SIZE * self.zoom * TargetBoard.SIZE_FACTOR
+        )
 
-sub add_sensors {
-    my ( $self, $piece ) = @_;
-
-    # no sensors in target board
-    return;
-}
-
-1;
+    def add_sensors(self, piece):
+        # no sensors in target board
+        pass

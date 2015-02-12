@@ -16,8 +16,7 @@ class Game:
         self.hcnt = 0
         self.board = Board.Board()
         self.btarget = Board.Board()
-        if filename is not None:
-            self.filename = filename
+        self.filename = filename
 
     def get_board(self):
         return self.board
@@ -54,7 +53,7 @@ class Game:
             except IOError:
                 pass
         else:
-            game_description = (
+            game_description = [
                 '#khunpan.pl',
                 '3,4',
                 'V1,1,2,blue,0,0',
@@ -79,7 +78,7 @@ class Game:
                 'S3,1,1,yellow,3,3',
                 'S4,1,1,yellow,3,4',
                 'END',
-            )
+            ]
             self.filename = '00-ling.game'
 
         line = game_description.pop(0)
@@ -88,7 +87,8 @@ class Game:
 
         line = game_description.pop(0)
         (x_size, y_size) = string.split(line, ',', 2)
-
+        x_size=int(x_size)
+        y_size=int(y_size)
         self.board.reset(x_size, y_size)
         self.btarget.reset(x_size, y_size)
 

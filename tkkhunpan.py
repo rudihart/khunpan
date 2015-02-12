@@ -1,9 +1,10 @@
+#!python
 __author__ = 'Rudolf Hart'
 
 from Tkinter import *
-import Khunpan
+from Khunpan import Khunpan
 
 root = Tk()
-khunpan = Khunpan(master=root);
-khunpan.mainloop();
+khunpan = Khunpan(master=root)
+khunpan.mainloop()
 root.destroy()

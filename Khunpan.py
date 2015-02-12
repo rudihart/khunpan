@@ -1,249 +1,178 @@
 __author__ = 'Rudolf Hart'
 
-from Tkinter import *
-import Tk
-import Board
-import Piece
-import Game
-import Tk.TargetBoard
-import Tk.PlayBoard
+import os
+import re
+import string
 
-class Khunpan:
-    def __init__(self):
-        self.title = "Khun Pan";
-        self.add_menu()
+from Tkinter import *
+import tkMessageBox
+import tkFileDialog
+import Game
+
+
+class Khunpan(Frame):
+    def __init__(self, master=None):
+        Frame.__init__(self, master)
+        self.pack()
+
+        master.title("Khun Pan")
+        self.menubar = Menu(self)
+
+        self.gamemenu = Menu(self.menubar, tearoff=0)
+
+        self.gamemenu.add_command(label="New", command=self.game_new)
+        self.gamemenu.add_separator()
+        self.gamemenu.add_command(label="Reset", command=self.game_reset)
+        self.gamemenu.add_separator()
+        self.gamemenu.add_command(label="Quit", command=self.game_quit)
+
+        self.menubar.add_cascade(label="Game", menu=self.gamemenu)
+
+        self.replaymenu = Menu(self.menubar, tearoff=0)
+
+        self.replaymenu.add_command(label="Play", command=self.replay_play)
+        self.replaymenu.add_separator()
+        self.replaymenu.add_command(label="Load", command=self.replay_load)
+        self.replaymenu.add_command(label="Save", command=self.replay_save)
+
+        self.menubar.add_cascade(label="Replay", menu=self.replaymenu)
+
+        self.helpmenu = Menu(self.menubar, tearoff=0)
+
+        self.helpmenu.add_command(label="Quick", command=self.help_quick)
+        self.helpmenu.add_command(label="Contents", command=self.help_contents)
+        self.helpmenu.add_separator()
+        self.helpmenu.add_command(label="About", command=self.help_about)
+
+        self.menubar.add_cascade(label="Help", menu=self.helpmenu)
+
         self.add_toolbar()
         self.init_config()
-        self.game_new();
+        self.game_new()
 
     def init_config(self):
-        self.config = { zoom : 20 }
+        self.config = {"zoom": 20}
 
-    def get_config(self,key):
+    def get_config(self, key):
         return self.config[key]
-}
 
-#  menu definition
-sub add_menu {
-    my ($self) = @_;
-    my $menubar_items = [
-        [   cascade    => '~Game',
-            -tearoff   => 0,
-            -menuitems => [
-                [ command => '~Default',  -command => [ \&game_new,  $self ] ],
-#                [ command => '~Load', -command => [ \&game_load, $self ] ],
-#                [ command => '~Save', -command => [ \&game_save, $self ] ],
-                q{-},
-                [ command => '~Reset', -command => [ \&game_reset, $self ] ],
-                q{-},
-                [ command => '~Quit', -command => [ \&game_quit, $self ] ],
-            ],
+    def add_toolbar(self):
+        game = StringVar()
+        gamedir = os.path.dirname(__file__) + '/games'
+        self.toolbar = Frame(self)
+        self.toolbar.games = OptionMenu(self.toolbar, game, _game_list())
 
-        ],
-        [   cascade    => '~Replay',
-            -tearoff   => 0,
-            -menuitems => [
-                [ command => '~Play',, -command => [ \&replay_play, $self ] ],
-                q{-},
-                [ command => '~Load', -command => [ \&replay_load, $self ] ],
-                [ command => '~Save', -command => [ \&replay_save, $self ] ],
+        self.toolbar.games.pack({"side": 'left'})
+        load_button = Button(text='Load Game',
+                             command=lambda g=game: self.Khunpan.game_load(g))
+        load_button.pack({"side": 'left'})
+        self.toolbar.pack({"side": 'top', "fill": 'x'})
 
-            ],
-        ],
-        [   cascade    => '~Help',
-            -tearoff   => 0,
-            -menuitems => [
-                [   command => '~Quick',
-                    -command => [ \&help_quick, $self ]
-                ],
-                [   command => '~Contents',
-                    -command => [ \&help_contents, $self ]
-                ],
-                q{-},
-                [ command => '~About', -command => [ \&help_about, $self ] ],
-            ],
-        ],
-    ];
+    def init_boards(self):
 
-    my $menubar = $self->Menu( -menuitems => $menubar_items );
-    $self->configure( -menu => $menubar );
-    return;
-}
+        if self.boards:
+            self.boards.destroy()
 
+        self.boards = Frame(self)
+        self.boards.pack({"side": 'bottom', "fill": 'both'})
+        board = self.game.get_board()
+        target = self.game.get_target()
 
-sub add_toolbar {
-  my ($self) = @_;
-  my $game;
+        pb = self.boards.PlayBoard(board, self.game, self.get_config('zoom'))
 
-  my $gamedir = dirname($PROGRAM_NAME).'/games';
-  $self->{toolbar} = $self->Frame();
-  $self->{toolbar}->Optionmenu(
-                               -options => [ _game_list() ],
-                               -variable => \$game,
-                              )->pack(-side=>'left');
-  $self->{toolbar}->Button(
-                           -text=>'Load Game',
-                           -command=> sub {
-                             $self->Khunpan::game_load($game);
-                           },
-                          )->pack(-side=>'left');
-  $self->{toolbar}->pack(-side => 'top', -fill => 'x');
-  return;
-}
+        pb.pack({"side": 'left'})
+        lab = Label(self.boards, text='  :  ', background='white')
+        lab.pack({"side": 'left', "fill": 'y'})
+        tb = self.boards.TargetBoard(target, self.game, self.get_config('zoom'))
+        tb.pack({"side": 'left'})
 
-sub init_boards {
-    my ($self) = @_;
+    ### Callbacks ###
 
-	if ($self->{boards}){
-        $self->{boards}->destroy();
-	}
-    $self->{boards} = $self->Frame()->pack(-side=>'bottom',-fill=>'both');
-    my $board  = $self->{game}->get_board();
-    my $target = $self->{game}->get_target();
+    ## Game ##
 
-    $self->{tkboard} = $self->{boards}->PlayBoard(
-        -board => $board,
-        -game  => $self->{game},
-        -zoom  => $self->get_config('zoom')
-    )->pack( -side => 'left' );
-    $self->{boards}->Label(
-        -text       => '  =>  ',
-        -background => 'white'
-    )->pack( -side => 'left', -fill => 'y' );
-    $self->{boards}->TargetBoard(
-        -board => $target,
-        -game  => $self->{game},
-        -zoom  => $self->get_config('zoom')
-    )->pack( -side => 'left' );
-    return;
-}
+    def game_new(self):
+        self.game = Game.Game()
+        self.game.load()
+        self.init_boards()
 
-### Callbacks ###
+    def game_load(self, game):
+        if game:
+            filename = os.path.dirname(__file__) + "/games/game.game"
+        else:
+            filename = tkFileDialog.askopenfilename({
+                "initialdir": os.path.dirname(__file__) + '/games',
+                "defaultextension": '.game',
+                "filetypes": [("Games", '.game')],
+                "initialfile": '00-ling.game'
+            })
 
-## Game ##
+            if not filename:
+                return
 
-sub game_new {
-    my ($self) = @_;
-    $self->{game} = Game->new();
-    $self->{game}->load();
-    $self->init_boards();
-    $self->configure(-title=>$self->{title}.': default');
-    return;
-}
+        self.game = Game(filename)
+        self.game.load()
+        self.init_boards()
 
-sub game_load {
-    my ($self,$game) = @_;
-    my $filename;
-    if($game) {
-      $filename = dirname($PROGRAM_NAME)."/games/$game.game";
-    }
-    else {
-      $filename = $self->getOpenFile(
-        -initialdir => dirname($PROGRAM_NAME).'/games',
-        -defaultextension => '.game',
-        -filetypes        => [
-            [ Games            => [ '.game', ] ],
-            [ 'User Games' => '_user.game' ],
-        ],
-        -initialfile => '00-ling.game',
-       );
+    def game_save(self):
+        filename = tkFileDialog.asksaveasfilename({
+            "initialdir": os.path.dirname(__file__) + '/games',
+            "defaultextension": '.game',
+            "filetypes": [("Games", '.game')],
+        })
 
-      if (not $filename ) { return; }
-      $game = basename $filename,'.game';
-    }
+        if not filename:
+            return
+        self.game.save(filename)
 
-    $self->{game} = Game->new($filename);
-    $self->{game}->load();
-    $self->init_boards();
-    $self->configure(-title=>$self->{title}.": $game");
-    return;
-}
+    def game_reset(self):
+        self.game.load()
+        self.init_boards()
+        self.game.clear_history()
+        return
 
-sub game_save {
-    my ($self) = @_;
-    my $filename = $self->getSaveFile(
-        -initialdir => dirname($PROGRAM_NAME).'/games',
-        -defaultextension => '_user.game',
-        -filetypes        => [ [ Games => [ '.game' ] ],
-                               [ 'User Games' => '_user.game' ] ],
-    );
-    if (not $filename ) { return; }
-    $filename = $filename;
-    $self->{game}->save($filename);
-    return;
-}
+    def game_quit(self):
+        os.exit(0)
 
-sub game_reset {
-    my ($self) = @_;
-    $self->{game}->load();
-    $self->init_boards();
-    $self->{game}->clear_history();
-    return;
-}
+    ## Replay ##
 
-sub game_quit {
-    my ($self) = @_;
-    exit 0;
-}
+    def replay_play(self):
+        REPLAY_STEP_TIME = 100
 
-## Replay ##
+        self.game.load()
+        self.init_boards()
+        self.game.rewind()
 
-sub replay_play {
-    my ($self) = @_;
+        self.after(REPLAY_STEP_TIME, lambda g=self.game: self.tkboard.replay_move(g))
 
-    Readonly my $REPLAY_STEP_TIME => 100;
+    def replay_load(self):
+        filename = tkFileDialog.askopenfilename({
+            "initialdir": os.path.dirname(__file__) + '/histories',
+            "defaultextension": '.sol',
+            "filetypes": [("Solutions", '.sol'), ("Game History", '.hist')],
+        })
+        if not filename:
+            return
+        if self.game.load_history(filename) != 0:
+            tkMessageBox.showerror("No Game Loaded", 'History requires game '
+                                   + os.path.basename(filename)
+                                   + ".\n\n"
+                                   + '                  NOT LOADED!'
+            )
 
-    $self->{game}->load();
-    $self->init_boards();
-    $self->{game}->rewind();
+    def replay_save(self):
+        filename = tkFileDialog.asksaveasfilename({
+            "initialdir": os.path.dirname(__file__) + '/histories',
+            "defaultextension": '.hist',
+            "filetypes": [("Game History", '.hist')],
+        })
+        if not filename:
+            return
+        self.game.save_history(filename)
 
-    $self->after( $REPLAY_STEP_TIME,
-        [ \&Tk::PlayBoard::replay_move, $self->{tkboard}, $self->{game} ] );
-    return;
-}
+    ## Help ##
 
-sub replay_load {
-    my ($self) = @_;
-    my $filename = $self->getOpenFile(
-        -initialdir => dirname($PROGRAM_NAME).'/histories',
-        -defaultextension => '.sol',
-        -filetypes        => [ [ 'Solutions' => [ '.sol' ] ],
-                               [ 'Game History' => [ '.hist' ] ],
-                             ],
-    );
-    if (not $filename ) { return; }
-    if ( $self->{game}->load_history($filename) != 0 ) {
-        $self->messageBox(
-            -type    => 'OK',
-            -icon    => 'error',
-            -message => 'History requires game '
-                . basename $filename
-                . ".\n\n"
-                . '                  NOT LOADED!'
-        );
-    }
-    return;
-}
-
-sub replay_save {
-    my ($self) = @_;
-    my $filename = $self->getSaveFile(
-        -initialdir => dirname($PROGRAM_NAME).'/histories',
-        -defaultextension => '.hist',
-        -filetypes        => [ [ 'Solutions' => [ '.sol' ] ],
-                               [ 'Game History' => [ '.hist' ] ] ]
-    );
-    if (not $filename ) { return; }
-    $filename = $filename;
-    $self->{game}->save_history($filename);
-    return;
-}
-
-## Help ##
-
-sub help_quick {
-    my ($self) = @_;
-    my $help = <<'_ABOUT_';
+    def help_quick(self):
+        help = """
 
   Move the red piece (Khun Pan) into the position indicated at the right.
   To move a piece click on it near the free area.
@@ -251,39 +180,32 @@ sub help_quick {
   You will get a message about success if you move all the pieces to the
   position indicated on the right.
 
-_ABOUT_
-    $self->messageBox( -type => 'OK', -icon => 'info', -message => $help );
-    return;
-}
+"""
+        tkMessageBox.showinfo("Khunpan Quick Help", help)
 
-sub help_contents {
-    my ($self) = @_;
-    use App::PodPreview qw(podpreview);
-    podpreview($PROGRAM_NAME);
-    return;
-}
+    def help_contents(self):
+        tkMessageBox.showerror("Programmer Laziness Error", "Not yet implemented")
 
-sub help_about {
-    my ($self) = @_;
-    my $about = <<"_ABOUT_";
-                Khun Pan V$REL_VERSION
+    def help_about(self):
+        about = """
+            Khun Pan VREL_VERSION
            Copyright 2004 Rudolf Hart
 
    If you have problems and understand German
   you might have a look at http://www.khunpan.de/
 
-_ABOUT_
-    $self->messageBox( -type => 'OK', -icon => 'info', -message => $about );
-    return;
-}
-sub _game_list {
-    my $gamedir = dirname($PROGRAM_NAME).'/games';
-    opendir(my $dir,$gamedir) || die "Reading game directory $gamedir failed\n";
-    my @games = sort readdir $dir;
-    @games = grep { not m{\A\.}xms } @games;
-    for my $ind ( 0 .. @games - 1 ) {
-    	$games[$ind]=~s{.game\z}{}xms;
-	}
-    return @games;
-}
+"""
+        tkMessageBox.showinfo("About Khunpan", about)
+
+
+def _game_list():
+    gamedir = os.path.dirname(__file__) + '/games'
+    contents = os.listdir(gamedir)
+    contents.sort()
+    games = []
+    regex = re.compile(".*\.game")
+    for fname in contents:
+        if regex.match(fname):
+            games.append(string.replace(fname, ".game", ""))
+    return games
 
