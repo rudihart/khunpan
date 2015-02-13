@@ -1,0 +1,11 @@
+ex2-10steps.game
+H1:w
+H3:n
+H2:e
+V5:n
+V2:n
+S1:n
+S4:n
+S2:w
+S3:e
+D1:s
